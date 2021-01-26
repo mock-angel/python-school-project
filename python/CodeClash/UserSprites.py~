@@ -1,0 +1,172 @@
+
+class UserSprites():
+
+  class Wall():
+    def __init__(self, Team):
+    #__WALL__
+        self.Name = "Wall"
+        self.Label = "w"
+    
+        self. __init_vars()
+        self.__set_team(Team)
+        
+        self.Position = (0, 0)
+        self.PrecisePosition = (0, 0)# not implemented.
+    def __init_vars(self):
+        self.HP = 10
+        
+        
+        self.DeployCost = 1
+        self.DeployCol = 3
+                
+    def __set_team(self, Team):
+        self.Team = Team
+    
+    
+    def __set_tick_property(self, value=30):
+        self.FramesPerBlock = value
+        
+    def Deploy(self, Spots):
+        # Search these empty slots and extract only
+        # possible positions. select randomly from
+        # them.
+        # Dont do it in this class.
+        # PossibleSlots = self.__GetListOfPossiblePositions(AvailableSpots)
+        
+        
+        # So what does this method do exactly?
+        #return Tuple
+        self.Position = Spots
+
+    def RunTick(self):
+        
+        pass
+        
+  class Missile():
+    def __init__(self, Team):
+    #__MISSILE__
+        self.Name = "Missile"
+        self.Label = "--"
+        
+        self.Frame_ = 0
+        
+        self. __init_vars()
+        self.__set_team(Team)
+        self.__set_tick_property()
+        
+        self.Position = (0, 0)
+        self.PrecisePosition = (0, 0)# not implemented.
+        
+    def __init_vars(self):
+        self.HP = 10
+        
+        self.DeployCost = 1
+        self.DeployCol = 5
+                
+    def __set_team(self, Team):
+        self.Team = Team
+    
+    def __set_tick_property(self, value=30):
+        self.FramesPerBlock = value
+    
+    def Deploy(self, Spot):
+        self.Position = Spot
+        pass
+        
+    def __NextBlock(self):
+        (r, c) = self.Position
+        
+        c += 1
+        
+        self.Position = (r, c)
+    
+    def __Movement(self):
+        self.Frame_ += 1
+        if self.Frame_ >= self.FramesPerBlock: 
+            self.__NextBlock()
+            self.Frame_ = 0
+        
+    def RunTick(self):
+        
+        # Handles Movement.
+        self.__Movement()
+        
+  class mines():
+    def __init__(self, Team):
+    #__MISSILE__
+        self.Name = "Missile"
+        self.Label = "--"
+        
+        self.Frame_ = 0
+        
+        self. __init_vars()
+        self.__set_team(Team)
+        self.__set_tick_property()
+        
+        self.Position = (0, 0)
+        self.PrecisePosition = (0, 0)# not implemented.
+        
+    def __init_vars(self):
+        self.HP = 10
+        
+        self.DeployCost = 1
+        self.DeployCol = 5
+                
+    def __set_team(self, Team):
+        self.Team = Team
+    
+    def __set_tick_property(self, value=30):
+        self.FramesPerBlock = value
+    
+    def Deploy(self, Spot):
+        self.Position = Spot
+        pass
+        
+    def __NextBlock(self):
+        (r, c) = self.Position
+        
+        c += 1
+        
+        self.Position = (r, c)
+    
+    def __Movement(self):
+        self.Frame_ += 1
+        if self.Frame_ >= self.FramesPerBlock: 
+            self.__NextBlock()
+            self.Frame_ = 0
+        
+    def RunTick(self):
+        
+        # Handles Movement.
+        self.__Movement()
+        
+        
+        
+if __name__ == "__main__":
+    a = Missile("b")
+    b = Missile("a")
+    
+    a.Deploy( (1, 1) )
+    
+    for i in range(60):
+        a.RunTick()
+    
+    print a.Position
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

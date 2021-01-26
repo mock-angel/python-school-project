@@ -1,0 +1,234 @@
+import pygame
+from pygame.locals import *
+
+import time
+import random
+from widgets import TextLine
+
+STATIC = 1
+DYNAMIC = 0
+
+# Position match and audio match.
+
+class Jack(pygame.sprite.Sprite):#NBack
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        
+        # Alphabets are for audio and numbers represent visuals.
+        
+        # Load sequence first.
+        self.alphabet_sequence = []
+        self.number_sequence = []
+        
+        self.active_number = 0
+        self.active_alphabet = None
+        
+        self.answered_number = False
+        self.answered_alphabet = False
+        
+        self.answered_count = 0
+        self.failed_count = 0
+        
+        self.allowed_alphabets = map(chr, range(97, 123)) # map(chr, range(ord('a'), ord('z')+1))
+        self.allowed_numbers = range(1, 10)
+        
+        self.max_sequence_count = 24
+        self.back = 3
+        
+        self.seq_len = 0 # Do not use this now.
+        
+        self.time_mode = STATIC
+        self.feedback_on_error = True
+        
+        self.pick_list = (True, True, True, False, False)
+        
+        self.image = pygame.Surface((1, 1))
+        self.rect = self.image.get_rect()
+        
+        self.tick_time = 0
+        self.time_per_tick = 3
+        
+        self.clock = pygame.time.Clock()
+        
+        self.init_surfaces()
+        self.init_buttons()
+        self.center_rect()
+        
+    def init_surfaces(self):
+        """Creates surfaces to be used position matching."""
+        
+        default_surf = pygame.image.load("data/board.png")
+        blue_surf = pygame.image.load("data/blue.png")
+        blue_rect = blue_surf.get_rect()
+        
+        _dict = {}
+        
+        _dict[0] = default_surf.copy()
+        
+        surf_1 = default_surf.copy()
+        _dict[1] = surf_1
+        
+        surf_2 = default_surf.copy()
+        _dict[2] = surf_2
+        surf_1.blit(blue_surf, (161, 1))
+        
+        surf_3 = default_surf.copy()
+        _dict[3] = surf_3
+        
+        surf_4 = default_surf.copy()
+        _dict[4] = surf_4
+        
+        surf_5 = default_surf.copy()
+        _dict[5] = surf_5
+        
+        surf_6 = default_surf.copy()
+        _dict[6] = surf_6
+        
+        surf_7 = default_surf.copy()
+        _dict[7] = surf_7
+        
+        surf_8 = default_surf.copy()
+        _dict[8] = surf_8
+        
+        surf_9 = default_surf.copy()
+        _dict[9] = surf_9
+        
+        surf_1.blit(blue_surf, (1, 1))
+        surf_2.blit(blue_surf, (160+1, 1))
+        surf_3.blit(blue_surf, (160*2+1, 1))
+        surf_4.blit(blue_surf, (1, 161))
+        surf_5.blit(blue_surf, (161, 161))
+        surf_6.blit(blue_surf, (160*2+1, 161))
+        surf_7.blit(blue_surf, (1, 160*2+1))
+        surf_8.blit(blue_surf, (161, 160*2+1))
+        surf_9.blit(blue_surf, (160*2+1, 160*2+1))
+        
+        
+        self.number_surface_dict = _dict
+        
+        self.image = _dict[self.active_number]
+    
+    def init_buttons(self):
+        pass
+        
+    def center_rect(self):
+        
+        rect = pygame.display.get_surface().get_rect()
+        
+        centerx, centery = rect.width/2, rect.height/2
+        self.rect.center = centerx, centery
+        
+    def register(self, key):
+        """register(key) - will be called on user press on a key on the keyboard.
+        Can also be called when the action of 'a' or 'l' keys are replicated.
+        
+        # The constructor for the methods are invoked every time register() is called.
+        
+        This may mess up the memory while accessing the answered_alphabet
+         and answered_number variables from different threads (event and update.)"""
+        
+        # Try to bring these methods outside the class and have it preregistered.
+        def on_a_pressed():
+            
+            # If it was correct.
+            if self.active_number == self.get_nback_number():
+                self.answered_count += 1
+                print "'a' press registered : ", True
+            
+            # If user pressed on the wrong turn.
+            else:
+                
+                self.failed_count += 1
+                print "a press registered : ", False
+                print self.number_sequence
+            
+            self.answered_number = True
+        
+        def on_l_pressed():
+            if self.active_alphabet == self.get_nback_alphabet():
+                self.answered_count += 1
+                print "'l' press registered : ", True
+            
+            else:
+                self.failed_count += 1
+                print "a press registered : ", False
+                print self.alphabet_sequence
+            
+            self.answered_alphabet = True
+        
+        # Call the required routines.
+        
+        if key == 'a' and not self.answered_number: on_a_pressed()
+        if key == 'l' and not self.answered_alphabet: on_l_pressed()
+    
+    def get_nback_from_seq(self, seq):
+        
+        ret_value = None
+        
+        if len(seq) < self.back: 
+            ret_value = None
+            
+        else: 
+            ret_value = seq[ -1 * self.back]
+        
+        return ret_value
+        
+    def get_nback_alphabet(self):
+        """get_nback_alphabet() - returns the nback alphabet."""
+        
+        return self.get_nback_from_seq(self.alphabet_sequence)
+    
+    def get_nback_number(self):
+        """get_nback_number() - returns the nback alphabet."""
+        
+        return self.get_nback_from_seq(self.number_sequence)
+    
+    def new_tick(self):
+        
+        print "Ticked"
+        
+        # Number
+        if random.choice(self.pick_list) and len(self.number_sequence) > self.back:
+            number = self.get_nback_number()
+        else:
+            number = random.choice(self.allowed_numbers)
+        
+        # Alphabet.
+        if random.choice(self.pick_list) and len(self.alphabet_sequence) > self.back:
+            alphabet = self.get_nback_alphabet()
+        else:
+            alphabet = random.choice(self.allowed_alphabets)
+        
+        self.active_number = number
+        self.number_sequence.append(number)
+        
+        self.image = self.number_surface_dict[number]
+        
+        self.active_alphabet = alphabet
+        self.alphabet_sequence.append(alphabet)
+        
+        pygame.mixer.music.load("sound/" + alphabet + " (1).mp3")
+        pygame.mixer.music.play()
+    
+    def update(self):
+        # Choose random number and apply.
+        self.tick_time += self.clock.tick()
+        
+        if self.tick_time > self.time_per_tick * 1000:
+            self.tick_time = 0
+            self.new_tick()
+        else: pass
+        
+    def draw(self, surface):
+        # Draw board
+        pass
+        #surface.blit(self.image, (self.rect.x, self.rect.y))
+        
+        
+        
+        
+        
+        
+        
+        
+        # Draw buttons.

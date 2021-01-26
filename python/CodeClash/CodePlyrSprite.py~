@@ -1,0 +1,291 @@
+import pygame
+from pygame.locals import *
+
+import colorsys
+import time
+
+# Define some colors
+BLACK    = (   0,   0,   0)
+WHITE    = ( 255, 255, 255)
+GREEN    = (   0, 255,   0)
+RED      = ( 255,   0,   0)
+BLUE     = (   0,   0, 255)
+BACKGROUND = (0, 45, 45)
+LINES_COLOR = (0, 109, 109)
+
+RED_GRAD = 1
+GREEN_GRAD = 2
+TEAL_GRAD = 3
+
+# Helper function to convert hsv to rgb.
+def hsv_2_rgb(h,s,v):
+    return   tuple(int(i * 255) for i in colorsys.hsv_to_rgb(h/360.,s/100.,v/100.))
+
+# Gradiants - Refer Graphic Layout coment below to search for markings.
+GREEN_GRAD = [
+    hsv_2_rgb(100,78,55),#!
+    hsv_2_rgb(100,90,47),#!
+    hsv_2_rgb(100,95,45),#!
+    hsv_2_rgb(100,100,43),#!
+    hsv_2_rgb(100,100,43)# |
+]
+
+TEAL_GRAD = [
+    hsv_2_rgb(183,78,55),
+    hsv_2_rgb(183,90,47),
+    hsv_2_rgb(183,95,45),
+    hsv_2_rgb(183,100,43),
+    hsv_2_rgb(182,100,39)
+]
+
+RED_GRAD = [
+    hsv_2_rgb(335,78,55),
+    hsv_2_rgb(335,90,47),
+    hsv_2_rgb(335,95,45),
+    hsv_2_rgb(335,100,43),
+    hsv_2_rgb(335,100,39)
+]
+
+#################################################################
+class Base(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Base, self).__init__()
+        
+        self.property = 'Base'
+        
+        self.COLOR = COLOR
+        self.color_no = color_no
+        
+        self.rect = pygame.Rect((0, 0), (64*3, 1080))
+        if self.color_no:
+            self.rect.x = 1920-(64*3)
+            
+        
+        
+        self.init_sprites()
+        
+        self.power = 0
+        self.prev_t = 0
+        self.time_per_tick = 5
+        
+        self.init_sprites()
+        
+    def init_sprites(self):
+        """Initialise sprites."""
+        
+        # Define Sprites of sprites.
+        # TODO: Seperate using base_part naming convention.
+        # BasePowerBar.
+        self.BasePowerBarOBJ = BasePowerBar(self.COLOR, self.color_no)
+        
+        # Call the mouse.
+        self.mouse = Mouse()
+        
+        # BaseUnitSelection.
+        BaseUnitSelection = [BaseUnit(self.COLOR, "Special Unit Selector", self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Heavy Tank Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Powerplant Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Mines Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Deflector Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Rocket Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Tank Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Cannon Selector', self.color_no)]
+        BaseUnitSelection += [BaseUnit(self.COLOR, 'Wall Selector', self.color_no)]
+        
+        # Declare sprite groups.
+        self.unit_selection_list = pygame.sprite.Group()
+        self.all_sprites_in_class = pygame.sprite.Group()
+        
+        for base_unit in BaseUnitSelection:
+            self.all_sprites_in_class.add(base_unit)
+            self.unit_selection_list.add(base_unit)
+            
+        self.all_sprites_in_class.add(self.BasePowerBarOBJ)
+        self.all_sprites_in_class.add(self.mouse)
+    
+    def mouse_clicked(self, mouse):
+        """Check whether mouse collides with any Selection sprite."""
+        
+        return pygame.sprite.spritecollideany(mouse, self.unit_selection_list)
+    
+    def update(self):
+        '''Update everything.'''
+        
+        # Update attributes and essentials.
+        self.update_power()
+        self.BasePowerBarOBJ.update(self.power)
+        self.unit_selection_list.update(self.power)
+        
+    def update_power(self):
+        '''Update self.power with respect to time.'''
+    
+        self.current_t = time.time()
+        
+        if self.prev_t: 
+            diff_t = (self.current_t - self.prev_t)
+            self.power += ((diff_t*1.0)/self.time_per_tick)
+            
+            # Never let power go beyond 9.
+            if self.power> 9: self.power = 9
+            
+        self.prev_t = self.current_t
+
+    def return_sprites(self):
+        """Collect sprites that have changed their state and requires an update in the screen."""
+        
+        for sprite in self.all_sprites_in_class:
+            if sprite.changed_state():
+                yield sprite              
+        
+    def is_collided_with(self, sprite):
+        return self.rect.colliderect(sprite.rect)
+#################################################################
+        
+class BasePowerBar(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(BasePowerBar, self).__init__()
+        
+        self.property = 'PowerBar'
+        
+        self.COLOR = COLOR
+        
+        # Set surface.
+        self.image = pygame.Surface([20, 1080])
+        self.power_surface = pygame.Surface([20, 0])
+        
+        self.block_size = 120
+        
+        # Set position.
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920-20
+        else:
+            self.rect.x = 0
+        
+        self.relative_pos = (0, 0)
+        
+        self.__clear()
+        
+    def update(self, power):
+        
+        self.height = int(power * self.block_size)
+        
+        self.__clear()
+        self.__draw_height()
+        
+    def __clear(self):
+        
+        self.image = pygame.Surface([20, 1080])
+        self.image.fill(self.COLOR[4])
+        
+    def __draw_height(self):
+        
+        # Define here how the power_surface looks like.
+        self.power_surface = pygame.Surface([20, self.height])
+        self.power_surface.fill((0, 45, 45))
+        self.image.blit(self.power_surface, [0, 1080-self.height])
+        
+    def changed_state(self):
+        return True
+        
+class BaseUnit(pygame.sprite.Sprite):
+    def __init__(self, COLOR, unit, color_no):
+        super(BaseUnit, self).__init__()
+        
+        self.COLOR = COLOR
+        self.property = 'Selector'
+        self.unit = unit
+        self.color_no = color_no
+        
+        if COLOR == GREEN_GRAD:
+            f = 'g'
+        elif COLOR == TEAL_GRAD:
+            f = 't'
+        elif COLOR == RED_GRAD:
+            f = 'r'
+        else:
+            None
+        if unit == 'Special Unit Selector':
+            u = '9'
+        elif unit == 'Heavy Tank Selector':
+            u = '8'
+        elif unit == 'Powerplant Selector':
+            u = '7'
+        elif unit == 'Mines Selector':
+            u = '6'
+        elif unit == 'Deflector Selector':
+            u = '5'
+        elif unit == 'Rocket Selector':
+            u = '4'
+        elif unit == 'Tank Selector':
+            u = '3'
+        elif unit == 'Cannon Selector':
+            u = '2'
+        elif unit == 'Wall Selector':
+            u = '1'
+        
+        self.number = u
+        
+        # Set surface to draw on.
+        self.alpha = 160
+        self.image = pygame.Surface([120, 120])
+        self.image.fill(BACKGROUND)
+        
+        # Load image to surface.
+        self.data = pygame.image.load('data/colors/{}/{}.png'.format(f, u)).convert()
+        if color_no: self.data = pygame.transform.flip(self.data, 1, 0)
+        self.image.blit(self.data, [0, 0])
+        self.image.set_alpha(160)
+        
+        # Set position.
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920-20-120
+        else:
+            self.rect.x = 20
+        self.rect.y = (9-int(u)) * 120
+        
+#        self.pos = (20, self.rect.y)
+        
+        self.req_update_in_screen = True
+        
+    def update(self, power):
+        '''Update Image State.'''
+        
+        # Make image dim if the reqired power isn't available.
+        if int(self.number) <= power and not (self.alpha == 255):
+            self.alpha = 255
+            self.req_update_in_screen = True
+        elif int(self.number) > power and not (self.alpha == 160):
+            self.alpha = 160
+            self.req_update_in_screen = True
+                    
+        self.image.set_alpha(self.alpha)
+        
+    def changed_state(self):
+        if self.req_update_in_screen == True:
+            
+            self.req_update_in_screen = False
+            return True
+        else:
+            return False
+            
+class Mouse(pygame.sprite.Sprite):
+    def __init__(self):
+        super(Mouse, self).__init__()
+        
+        self.image = pygame.Surface([0, 0])
+        self.rect = self.image.get_rect()
+        self.update()
+        
+    def update(self):
+        (self.rect.x, self.rect.y) = pygame.mouse.get_pos()
+        
+    def changed_state(self):
+        return False
+        
+
+    
+    
+    
+    

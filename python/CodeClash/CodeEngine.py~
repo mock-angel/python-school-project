@@ -1,0 +1,362 @@
+import os
+import time
+
+import pygame
+from pygame.locals import *
+#import subprocess
+#import multiprocessing
+
+
+from CodeSprites import Rocket, Wall, Tank, Mines, Cannon, Powerplant
+from CodePlyrSprite import Base
+from RandRadiant import RandRadiant
+import colorsys
+import time
+
+from threading import Thread
+
+# Define some colors
+BLACK    = (   0,   0,   0)
+WHITE    = ( 255, 255, 255)
+GREEN    = (   0, 255,   0)
+RED      = ( 255,   0,   0)
+BLUE     = (   0,   0, 255)
+BACKGROUND = (0, 45, 45)
+LINES_COLOR = (0, 109, 109)
+
+RED_GRAD = 1
+GREEN_GRAD = 2
+TEAL_GRAD = 3
+
+# Helper function to convert hsv to rgb.
+def hsv_2_rgb(h,s,v):
+    return   tuple(int(i * 255) for i in colorsys.hsv_to_rgb(h/360.,s/100.,v/100.))
+
+# Gradiants - Refer Graphic Layout coment below to search for markings.
+GREEN_GRAD = [
+    hsv_2_rgb(100,78,55),#!
+    hsv_2_rgb(100,90,47),#!
+    hsv_2_rgb(100,95,45),#!
+    hsv_2_rgb(100,100,43),#!
+    hsv_2_rgb(100,100,43)# |
+]
+
+TEAL_GRAD = [
+    hsv_2_rgb(183,78,55),
+    hsv_2_rgb(183,90,47),
+    hsv_2_rgb(183,95,45),
+    hsv_2_rgb(183,100,43),
+    hsv_2_rgb(182,100,39)
+]
+
+RED_GRAD = [
+    hsv_2_rgb(335,78,55),
+    hsv_2_rgb(335,90,47),
+    hsv_2_rgb(335,95,45),
+    hsv_2_rgb(335,100,43),
+    hsv_2_rgb(335,100,39)
+]
+
+threads = []
+
+class CodeEngine():
+    '''All sprites run in this class.'''
+    
+    def __init__(self, COLOR1, COLOR2):
+        
+        # Used for the infinite loop in in update.
+        
+        self.Done = 0
+        
+        # Stores rects that need update in context with plyr_menu.
+        
+        self.dirty_dirty_rects = []
+        
+        # DeployH ClassOBJ helps decide where to place the units.
+        self.DeployH = RandRadiant()
+        
+        # Add the rows to the DeployH.
+        for i in range(8):
+            self.DeployH.create_new_branch( 'COLOR1_{}'.format(str(i)) )
+            self.DeployH.create_new_branch( 'COLOR2_{}'.format(str(i)) )
+        
+        # --- Define Sprite Group classes.
+        
+        # All the units are split into different teams here.
+        self.all_COLOR1_units_list = pygame.sprite.Group()
+        self.all_COLOR2_units_list = pygame.sprite.Group()
+        
+        # All the controlls for unit selection goes here.
+        self.plyr_menu = pygame.sprite.Group()
+        
+        # All units are stored here.
+        self.all_units_list = pygame.sprite.Group()
+        
+        # All sprites are stored here.
+        self.all_sprites_list = pygame.sprite.Group()
+        
+        # Define unit selection base.
+        self.plyr_menu.add(Base(COLOR1, 0) )
+        self.plyr_menu.add(Base(COLOR2, 1) )
+            
+        
+        # --- Add units before game begines to test. 
+        self.add_rocket(COLOR2, 1)
+        
+        
+        # Start game process that updates 60 times per second.
+        t1 = Thread(target=self.start_engine, args=() )
+        t1.start()
+        threads.append(t1)
+    
+    #######################################
+    def __test_collision_of_all_units(self):
+        self.collide_list = []
+        
+        
+        for sprite_1 in self.all_COLOR1_units_list:
+            collided_with = None
+            for sprite_2 in self.all_COLOR2_units_list:
+                if sprite_1.is_collided_with(sprite_2):
+                    collided_with = sprite_2
+
+                    self.collide_list += [(sprite_1, sprite_2)]
+                    
+    def __process_all_sprite_unit_collisions(self):
+        for collision_sprite_tuple in self.collide_list:
+            self.dirty_dirty_rects += [collision_sprite_tuple[0]]
+            collision_sprite_tuple[0].kill()
+            self.dirty_dirty_rects += [collision_sprite_tuple[1]]
+            collision_sprite_tuple[1].kill()
+            
+    #######################################
+    
+    '''_run_updates'''
+    #######################
+    def _run_updates(self):
+        self.plyr_menu.update()
+        self.all_sprites_list.update()
+        
+        # Collision thingy.
+        self.__test_collision_of_all_units()
+        self.__process_all_sprite_unit_collisions()
+    #######################
+
+    
+    #######################################################
+    # TODO: Try to use a common method for processing this.
+    def add_rocket(self, COLOR, color_no):
+        rocket = Rocket(COLOR, color_no)
+
+        r = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_6'.format(str(color_no + 1)))
+
+        rocket.rect.y = 64*int(r)
+        
+        # --- Add units to sprite Group now.
+        if not color_no:
+
+            self.all_COLOR1_units_list.add(rocket)
+        else:
+
+            self.all_COLOR2_units_list.add(rocket)
+        
+        rocket.create_inner_rect()
+        
+        self.all_units_list.add(rocket)
+        self.all_sprites_list.add(rocket)
+        
+    def add_wall(self, COLOR, color_no):
+        wall = Wall(COLOR, color_no)
+
+        r = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_4'.format(str(color_no + 1)))
+
+        wall.rect.y = 64*(int(r)-1)
+        
+        
+        # --- Add units to sprite Group now.
+        if not color_no:
+            self.all_COLOR1_units_list.add(wall)
+            
+        else:
+            self.all_COLOR2_units_list.add(wall)
+        
+        self.all_units_list.add(wall)
+        self.all_sprites_list.add(wall)
+        
+        wall.create_inner_rect()
+        
+    def add_tank(self, COLOR, color_no):
+        tank = Tank(COLOR, color_no)
+
+        r = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_6'.format(str(color_no + 1)))
+
+        tank.rect.y = 64*int(r)
+        
+        
+        # --- Add units to sprite Group now.
+        if not color_no:
+            self.all_COLOR1_units_list.add(tank)
+            
+        else:
+            self.all_COLOR2_units_list.add(tank)
+        
+        self.all_units_list.add(tank)
+        self.all_sprites_list.add(tank)
+        
+        
+    def add_mines(self, COLOR, color_no):
+        mines = [Mines(COLOR, color_no) for i in range(3)]
+
+        r1 = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_5'.format(str(color_no + 1)))
+        r2 = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_5'.format(str(color_no + 1)))
+        r3 = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_5'.format(str(color_no + 1)))
+
+        mines[0].rect.y = 64*int(r1)
+        mines[1].rect.y = 64*int(r2)
+        mines[2].rect.y = 64*int(r3)
+        
+        
+        # --- Add units to sprite Group now.
+        if not color_no:
+            self.all_COLOR1_units_list.add(*mines)
+            
+        else:
+            self.all_COLOR2_units_list.add(*mines)
+        
+        self.all_units_list.add(*mines)
+        self.all_sprites_list.add(*mines)
+        
+    def add_cannon(self, COLOR, color_no):
+        cannon = Cannon(COLOR, color_no)
+
+        r = self.DeployH.write_random_number_to_branch_by_range((1, 15), 'COLOR{}_3'.format(str(color_no + 1)))
+
+        cannon.rect.y = 64*int(r)
+        
+
+        # --- Add units to sprite Group now.
+        if not color_no:
+            self.all_COLOR1_units_list.add(cannon)
+
+        else:
+            self.all_COLOR2_units_list.add(cannon)
+
+        self.all_units_list.add(cannon)
+        self.all_sprites_list.add(cannon)
+    
+    def add_powerplant(self, COLOR, color_no):
+        powerplant = Powerplant(COLOR, color_no)
+
+        r = self.DeployH.write_random_number_to_branch_by_choice([3, 7, 11], 'COLOR{}_1'.format(str(color_no + 1)))
+
+        powerplant.rect.y = 64*int(r)
+        
+
+        # --- Add units to sprite Group now.
+        if not color_no:
+            self.all_COLOR1_units_list.add(powerplant)
+
+        else:
+            self.all_COLOR2_units_list.add(powerplant)
+
+        self.all_units_list.add(powerplant)
+        self.all_sprites_list.add(powerplant)
+    #######################################################
+    
+    
+    def process_sprite_selected(self, selected_sprite):
+        
+        # Player menu.
+        pm = []
+        for sprite in self.plyr_menu:
+            pm += [sprite]
+
+        
+        if selected_sprite.property == 'Selector':
+            pass
+        else: return None
+        
+        if selected_sprite.unit == 'Rocket Selector' and pm[selected_sprite.color_no]:
+            self.add_rocket(selected_sprite.COLOR, selected_sprite.color_no)
+            
+        elif selected_sprite.unit == 'Wall Selector' and pm[selected_sprite.color_no]:
+            self.add_wall(selected_sprite.COLOR, selected_sprite.color_no)
+            
+        elif selected_sprite.unit == 'Tank Selector' and pm[selected_sprite.color_no]:
+            self.add_tank(selected_sprite.COLOR, selected_sprite.color_no)
+            
+        elif selected_sprite.unit == 'Mines Selector' and pm[selected_sprite.color_no]:
+            self.add_mines(selected_sprite.COLOR, selected_sprite.color_no)
+            
+        elif selected_sprite.unit == 'Cannon Selector' and pm[selected_sprite.color_no]:
+            self.add_cannon(selected_sprite.COLOR, selected_sprite.color_no)
+            
+        elif selected_sprite.unit == 'Powerplant Selector' and pm[selected_sprite.color_no]:
+            self.add_powerplant(selected_sprite.COLOR, selected_sprite.color_no)
+        
+        
+    def calculate_dirty_dirty_rects_frm_plyr_menu_and_return_sprites(self):
+#        dirty_rects = []
+        
+        self.sprites = []
+        
+        for menu in self.plyr_menu:
+            self.sprites += list(menu.return_sprites()) 
+            self.dirty_dirty_rects += self.sprites
+            #sprites.draw(surface)
+        
+
+        #self.dirty_dirty_rects += dirty_rects
+        return self.sprites
+        
+    def draw(self, surface):
+        temp_sprite_group = pygame.sprite.Group()
+        
+        temp_sprite_group.add(*self.calculate_dirty_dirty_rects_frm_plyr_menu_and_return_sprites() )
+
+        temp_sprite_group.draw(surface)
+        temp_sprite_group.empty()
+        self.all_sprites_list.draw(surface)
+        
+        #surface.fill(BLACK)
+        
+    def get_dirty_rects(self):
+        """Collect all the rects that have the sprites for updating."""
+        
+        for sprite in self.all_sprites_list:
+            yield sprite.rect
+        
+        for sprite in self.dirty_dirty_rects:
+            yield sprite.rect
+        
+        self.dirty_dirty_rects = []
+        
+    def cursor_clicked(self, Mouse):
+        
+        copied_group = pygame.sprite.Group()
+        for sprite in self.plyr_menu:
+            copied_group.add(sprite)
+        
+        selected_option_sprite = pygame.sprite.spritecollideany(Mouse, copied_group)
+        
+        if selected_option_sprite: 
+            self.process_sprite_selected(selected_option_sprite.mouse_clicked(Mouse))
+        
+        copied_group.empty()
+    def exit(self):
+        self.Done = 1
+
+    def start_engine(self):
+        clock = pygame.time.Clock()
+      
+        while not self.Done:
+      
+            self._run_updates()
+        
+            clock.tick(60)
+        
+        
+        
+        
+        
+        

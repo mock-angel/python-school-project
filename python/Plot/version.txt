@@ -1,0 +1,4 @@
+Procedure: took a list of x data each at interval dx = 0.1 and got value of y by using function y(x) = 2sin(x)+5sin(8x) for each values of x. Plotted those points and curve fitting to find the sine wave.
+
+Number of data(x, y) used for curve fitting = 100
+A ~~ 2.3326

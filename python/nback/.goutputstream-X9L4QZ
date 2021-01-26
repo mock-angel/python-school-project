@@ -1,0 +1,126 @@
+import pygame
+from pygame.locals import *
+
+import time
+import random
+from widgets import TextLine
+
+STATIC = 1
+DYNAMIC = 0
+
+# Position match and audio match.
+
+class NBack(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        
+        # Alphabets are for audio and numbers represent visuals.
+        
+        # Load sequence first.
+        self.alphabet_sequence = []
+        self.number_sequence = []
+        
+        self.active_number = 0
+        self.active_alphabet = None
+        
+        self.allowed_alphabets = map(chr, range(97, 123)) # map(chr, range(ord('a'), ord('z')+1))
+        
+        self.sequence_count = 24
+        self.back = 3
+        
+        self.time_mode = STATIC
+        self.feedback_on_error = True
+        
+        self.init_surfaces()
+        self.init_buttons()
+        
+    def init_surfaces(self):
+        """Creates surfaces to be used position matching."""
+        
+        default_surf = pygame.image.load("data/board.png")
+        blue_surf = pygame.image.load("data/blue.png")
+        blue_rect = blue_surf.get_rect()
+        
+        _dict = {}
+        
+        _dict[0] = default_surf.copy()
+        
+        surf_1 = default_surf.copy()
+        _dict[1] = surf_1
+        
+        surf_2 = default_surf.copy()
+        _dict[2] = surf_2
+        surf_1.blit(blue_surf, (161, 1))
+        
+        surf_3 = default_surf.copy()
+        _dict[3] = surf_3
+        
+        surf_4 = default_surf.copy()
+        _dict[4] = surf_4
+        
+        surf_5 = default_surf.copy()
+        _dict[5] = surf_5
+        
+        surf_6 = default_surf.copy()
+        _dict[6] = surf_6
+        
+        surf_7 = default_surf.copy()
+        _dict[7] = surf_7
+        
+        surf_8 = default_surf.copy()
+        _dict[8] = surf_8
+        
+        surf_8 = default_surf.copy()
+        _dict[9] = surf_9
+        
+        surf_1.blit(blue_surf, (1, 1))
+        surf_2.blit(blue_surf, (160+1, 1))
+        surf_3.blit(blue_surf, (160*2+1, 1))
+        surf_4.blit(blue_surf, (1, 161))
+        surf_5.blit(blue_surf, (161, 161))
+        surf_6.blit(blue_surf, (160*2+1, 161))
+        surf_7.blit(blue_surf, (1, 160*2+1))
+        surf_8.blit(blue_surf, (161, 160*2+1))
+        surf_9.blit(blue_surf, (160*2+1, 160*2+1))
+        
+        
+        self.number_surface_dict = _dict
+        
+        self.image = _dict[self.active_number]
+        
+    def register(self, key):
+        
+        def on_l_pressed():
+            
+            # If it was correct.
+            if self.active_number == self.get_nback_number:
+                self.answered_number_back = True
+                self.answered_count += 1
+                print True
+            
+            # If user pressed on the wrong turn.
+            else:
+                self.answered_number_back = True
+                self.failed_count += 1
+                print False
+                
+        if key == 'l' and not self.answered_number_back:
+            on_l_pressed()
+        else:
+            
+        
+        
+    def get_nback_alphabet(self):
+        pass
+        
+    def get_nback_number(self):
+        pass
+        
+    def update(self):
+        pass
+        
+    def draw(self, surface):
+        # Draw board
+        surface.blit(self.image, self.rect)
+        
+        # Draw buttons.

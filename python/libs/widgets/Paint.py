@@ -1,0 +1,278 @@
+# Paint.py
+import pygame
+
+from Mouse import Mouse
+from Button import Button, create_button_theme
+
+RECTANGLE = 0
+SQUARE = 1
+ELLIPSE = 2
+CIRCLE = 3
+LINE = 4
+SURFACE = -1
+
+class PaintObject():
+    """
+    pobj = PaintObject(RECTANGLE)
+    pobj.set_marker()
+    
+    self.paint_object_list.append(pobj)
+    
+    """
+    def __init__(self, shape, size = None, pos = None):
+        self.mouse = Mouse()
+        
+        
+        self.color = (100,100,100)
+        self.select_shape(shape, size=size, pos=pos)
+        
+#        self.shape_callback = self.null
+    def null(self): pass
+    def select_shape(self, shape = RECTANGLE, size = None, pos = None):
+        
+        if shape == RECTANGLE:
+            self.shape_callback = self.shape_rectangle
+            self.drawing_callback = self.draw_rectangle
+            
+#        if shape == SQUARE:
+#            self.shape_callback = self.shape_square
+#            self.drawing_callback = self.draw_rectangle
+            
+        if shape == ELLIPSE:
+            self.shape_callback = self.shape_ellipse
+            self.drawing_callback = self.draw_ellipse
+            
+        if shape == CIRCLE:
+            self.shape_callback = self.shape_circle
+            self.drawing_callback = self.draw_circle
+#            
+        if shape == LINE:
+            self.shape_callback = self.shape_line
+            self.drawing_callback = self.draw_line
+        
+        if shape == SURFACE:
+            self.drawing_callback = self.draw_surface
+            self.drawing_surface = pygame.Surface(size).convert()
+            
+            self.rect = pygame.Rect(pos, size)
+            
+    def set_marker(self):
+        self.mouse.update()
+        self.marker_pos = self.mouse.get_pos()
+    # Callbacks.
+    #################################################
+    # -- Shaping the shapes.
+    def shape_rectangle(self):
+        """Rectangle shaping."""
+        
+        self.mouse.update()
+        self.cursor_pos = self.mouse.get_pos()
+        
+        mx, my = self.marker_pos
+        cx, cy = self.cursor_pos
+        width, height = cx - mx, cy - my
+        
+        self.params = [mx, my, width, height], 1
+    
+    def shape_ellipse(self):
+        """Ellipse shaping."""
+        
+        self.mouse.update()
+        self.cursor_pos = self.mouse.get_pos()
+        
+        mx, my = self.marker_pos
+        cx, cy = self.cursor_pos
+
+        if cx > mx:
+            width = cx - mx
+            x = mx
+        else:
+            width = mx - cx
+            x = cx
+            
+        if cy > my:
+            height = cy - my
+            y = my
+        else:
+            height = my - cy
+            y = cy
+        
+        if width < 2: width = 2
+        if height < 2: height = 2
+            
+        print [x, y, width, height]
+        rect = pygame.Rect([x, y, width, height])
+
+        self.params = rect, 1
+    
+    def shape_line(self):
+        """Line shaping."""
+        
+        self.mouse.update()
+        self.cursor_pos = self.mouse.get_pos()
+        
+        self.params = self.marker_pos, self.cursor_pos, 1
+    
+    def shape_circle(self):
+        """Ellipse shaping."""
+        
+        self.mouse.update()
+        self.cursor_pos = self.mouse.get_pos()
+        
+        mx, my = self.marker_pos
+        cx, cy = self.cursor_pos
+        
+        radius = ((cx - mx) if abs(cx - mx) < abs(cy - my) else (cy - my))/2
+        
+        # Radius can never be 0.
+        radius = 1 if not radius else radius
+        
+        self.params = self.marker_pos, radius, 1
+        
+    # -- Drawing shapes.
+    def draw_rectangle(self, surface):
+
+        pygame.draw.rect(surface, self.color, *self.params)
+    
+    def draw_ellipse(self, surface):
+
+        pygame.draw.ellipse(surface, self.color, *self.params)
+    
+    def draw_line(self, surface):
+
+        pygame.draw.line(surface, self.color, *self.params)
+        
+    def draw_circle(self, surface):
+        return
+        pygame.draw.circle(surface, self.color, *self.params)
+        
+    def draw_surface(self, surface):
+        
+        surface.blit(self.drawing_surface, (self.rect.x, self.rect.y))
+    #################################################
+    # Used outside.
+    def reshape(self):
+        """Called whenever the shape is changed by the user."""
+        self.shape_callback()    
+            
+    def draw(self, surface):
+        """Draws the shape."""
+        
+        self.drawing_callback(surface)
+        
+class PaintSurface(Button):
+    def __init__(self, size = (500, 500)):
+        Button.__init__(self)
+        self.size = size
+        self.init_paintsurfaces()
+    
+    def init_paintsurfaces(self):
+        """Init code."""
+        
+        self.drawing_surface = pygame.Surface(self.size).convert()
+        self.image = self.drawing_surface.copy()
+        
+        self.theme = create_button_theme(self.image)
+        
+        cdefault = pygame.cursors.arrow
+        chov = pygame.cursors.broken_x
+        
+        self.cursors = create_button_theme(cdefault, chov)
+        
+        self.clicked(self.add_paint_object, ())
+        self.pressed(self.reshape_pobj)
+        self.paint_object_list = list()
+        
+        self.rect = self.image.get_rect()
+
+        self.working_index = -1
+        
+        self.current_shape = RECTANGLE
+        
+        # Set to inform that the previous action was 'Clear.'
+        self.prev_cleared = False
+        
+    def change_shape(self, shape):
+        """Changes the drawing shape."""
+        
+        self.current_shape = shape
+#        for pobj in self.paint_object_list:
+        #self.paint_object_list[self.working_index].select_shape(shape)
+        
+        
+    def add_paint_object(self):
+        """When a new shape is drawn."""
+        
+#        self.prev_cleared = False
+        
+        self.flush()
+        
+        self.paint_object_list = self.paint_object_list[0:self.working_index+1]
+        
+        pobj = PaintObject(self.current_shape)
+        pobj.set_marker()
+        pobj.reshape()
+        self.paint_object_list.append(pobj)
+        
+        self.working_index += 1
+        
+    def reshape_pobj(self):
+        """When the user changes the shape of the existing shape
+        by dragging it during creation."""
+        
+        self.paint_object_list[self.working_index].reshape()
+
+        
+        
+    def flush(self):
+        """ Removes PaintObjects that were to the front of the current.
+        
+        Makes redo to the objects that were removed impossible."""
+        
+        self.paint_object_list = self.paint_object_list[0:self.working_index+1]
+        
+    def clear(self):
+        """Clears the screen.
+        
+        Doesn't actually clear the screen though. It just shifts the 
+        index value of the foremost shape."""
+        self.flush()
+        pobj = PaintObject(SURFACE, size=(500, 500), pos = (40, 50))
+        self.paint_object_list.append(pobj)
+        self.working_index += 1
+        
+        
+    def reset(self):
+        """Resets the screen.
+        
+        Cannotgo back to previous surfaces. 
+        Undo won't bring back lost surfaces."""
+        
+        self.working_index = -1
+        self.paint_object_list = []
+        
+    def undo(self):
+        
+        if self.working_index > -1: self.working_index -= 1
+        
+    def redo(self):
+        if self.prev_cleared:
+            self.clear()
+            return
+
+        if len(self.paint_object_list) > self.working_index+1:
+            self.working_index+=1
+            
+    def update(self):
+        pass
+        
+    def draw(self, surface):
+        """draw() draws all the shapes in order of their creation."""
+        
+        # First the drawing screen background.
+        surface.blit(self.image, (self.rect.x, self.rect.y))
+        
+        # Then use all the drawing objects.
+        li = self.paint_object_list[0:self.working_index+1]
+        for pobj in li:
+            pobj.draw(surface)
