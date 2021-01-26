@@ -1,0 +1,450 @@
+import pygame
+from pygame.locals import *
+
+import colorsys
+import time
+import random
+
+RED_GRAD = 1
+GREEN_GRAD = 2
+TEAL_GRAD = 3
+
+# Helper function to convert hsv to rgb.
+def hsv_2_rgb(h,s,v):
+    return   tuple(int(i * 255) for i in colorsys.hsv_to_rgb(h/360.,s/100.,v/100.))
+
+# Gradiants - Refer Graphic Layout coment below to search for markings.
+GREEN_GRAD = [
+    hsv_2_rgb(100,78,55),#!
+    hsv_2_rgb(100,90,47),#!
+    hsv_2_rgb(100,95,45),#!
+    hsv_2_rgb(100,100,43),#!
+    hsv_2_rgb(100,100,43)# |
+]
+
+TEAL_GRAD = [
+    hsv_2_rgb(183,78,55),
+    hsv_2_rgb(183,90,47),
+    hsv_2_rgb(183,95,45),
+    hsv_2_rgb(183,100,43),
+    hsv_2_rgb(182,100,39)
+]
+
+RED_GRAD = [
+    hsv_2_rgb(335,78,55),
+    hsv_2_rgb(335,90,47),
+    hsv_2_rgb(335,95,45),
+    hsv_2_rgb(335,100,43),
+    hsv_2_rgb(335,100,39)
+]
+
+class Rocket(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Rocket, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+        elif COLOR == GREEN_GRAD:
+            F='g'
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        self.image = pygame.image.load('data/colors/{}/Rocket.png'.format(F)).convert_alpha()
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+#        color_fg = Color("white")
+#        font = pygame.font.Font(font, size)
+#        
+#        font = pygame.font.SysFont(None, 48)
+#        text = basicfont.render('Hello World!', True, (255, 0, 0), (255, 255, 255))
+#        
+#        
+#        
+#        label = myfont.render((highscores), 1, (0,0,0))
+#        self.image.blit(label, (0, 0))
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 9)
+            self.xx = 64 * 9
+        else:
+            self.rect.x = 64*(7)
+        
+        self.rect_without_alpha = self.rect.copy()
+        
+        if not color_no:
+            self.rect_without_alpha.x += 61
+            
+        else:
+            self.rect_without_alpha.x += 67
+        
+        #self.rect_without_alpha.y += 19
+        self.rect_without_alpha.width = 67
+        self.rect_without_alpha.height = 24
+        
+         
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+        #self.prev_t = time.time()
+        
+        self.current_t = time.time()
+        if self.prev_t: 
+            diff_t = (self.current_t - self.prev_t)
+            
+            #print diff_t
+            if not self.color_no:
+                self.rect.x += self.block_size * ((diff_t * 1.0) / self.time_per_tick)
+                
+            else:
+                self.xx += self.block_size * ((diff_t * 1.0) / self.time_per_tick) 
+                self.rect.x = 1920 - self.xx
+                
+            self.add -= diff_t
+            
+            #print self.add
+        self.prev_t = self.current_t 
+    
+        if not self.color_no:
+            self.rect_without_alpha.x = self.rect.x + 61
+            
+        else:
+            self.rect_without_alpha.x = self.rect.x + 67
+        
+        # Optimise this line.
+        self.rect_without_alpha.y = self.rect.y + 19
+    
+    def create_inner_rect(self):
+        self.rect_without_alpha.y = self.rect.y + 19
+    
+    def is_collided_with(self, sprite):
+        
+        self.rect_without_alpha.y = self.rect.y + 19
+        return self.rect_without_alpha.colliderect(sprite.rect_without_alpha)
+        
+class Wall(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Wall, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+        elif COLOR == GREEN_GRAD:
+            F='g'
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        self.image = pygame.image.load('data/colors/{}/Wall.png'.format(F)).convert_alpha()
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 7)
+            self.xx = 64 * 7
+        else:
+            self.rect.x = 64*(6)
+        
+        self.rect_without_alpha = self.rect.copy()
+        
+        if not self.color_no:
+            self.rect_without_alpha.x += 11
+        else:
+            self.rect_without_alpha.x += 23
+        self.rect_without_alpha.width = 31
+        self.rect_without_alpha.height = 68
+        
+        
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+    
+        pass
+    
+    def create_inner_rect(self):
+        self.rect_without_alpha.y = self.rect.y + 61
+        
+    def is_collided_with(self, sprite):
+        return self.rect_without_alpha.colliderect(sprite.rect_without_alpha)
+        
+        
+class Tank(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Tank, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+        elif COLOR == GREEN_GRAD:
+            F='g'
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        self.image = pygame.image.load('data/colors/{}/Tank.png'.format(F)).convert_alpha()
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 10)
+            self.xx = 64 * 10
+            
+        else:
+            self.rect.x = 64*(7)
+        
+        
+        self.rect_without_alpha = self.rect
+        if not color_no:
+            self.rect_without_alpha.x += 53
+            
+        else:
+            self.rect_without_alpha.x += 60
+
+        self.rect_without_alpha.y += 13
+        self.rect_without_alpha.width = 82
+        self.rect_without_alpha.height = 41
+        
+        
+        
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+        pass
+        #self.prev_t = time.time()
+        
+        self.current_t = time.time()
+        if self.prev_t: 
+            diff_t = (self.current_t - self.prev_t)
+            
+            #print diff_t
+            if not self.color_no:
+                self.rect.x += self.block_size * ((diff_t * 1.0) / self.time_per_tick)
+                
+            else:
+                self.xx += self.block_size * ((diff_t * 1.0) / self.time_per_tick) 
+                self.rect.x = 1920 - self.xx
+                
+            self.add -= diff_t
+            
+            #print self.add
+        self.prev_t = self.current_t 
+        
+        if not color_no:
+            self.rect_without_alpha.x = self.rect.x + 53
+        else:
+            self.rect_without_alpha.x = self.rect.x + 60
+        
+    # TODO: place before update.
+    def is_collided_with(self, sprite):
+
+        return self.rect_without_alpha.colliderect(sprite.rect_without_alpha)
+        
+        
+class Mines(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Mines, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+            
+        elif COLOR == GREEN_GRAD:
+            F='g'
+            
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        foo = ['0', '1', '2', '3']
+        
+        self.image = pygame.image.load('data/colors/{}/Mines{}.png'.format(F, random.choice(foo))).convert_alpha()
+        
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 8)
+            self.xx = 64 * 8
+        else:
+            self.rect.x = 64*(7)
+            
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+        pass
+
+    def is_collided_with(self, sprite):
+        return self.rect.colliderect(sprite.rect)
+        
+        
+class Cannon(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Cannon, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+            
+        elif COLOR == GREEN_GRAD:
+            F='g'
+            
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        self.image = pygame.image.load('data/colors/{}/Cannon.png'.format(F)).convert_alpha()
+        
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 7)
+            self.xx = 64 * 7
+        else:
+            self.rect.x = 64*(4)
+            
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+        pass
+        
+    def is_collided_with(self, sprite):
+        return self.rect.colliderect(sprite.rect)
+        
+        
+class Powerplant(pygame.sprite.Sprite):
+    def __init__(self, COLOR, color_no):
+        super(Powerplant, self).__init__()
+        #pygame.sprite.Sprite.__init__(self)
+        
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        #self.image = pygame.Surface([width, height])
+        #self.image.fill(color)
+        self.color_no = color_no
+        
+        if COLOR == RED_GRAD: 
+            F='r'
+            
+        elif COLOR == GREEN_GRAD:
+            F='g'
+            
+        elif COLOR == TEAL_GRAD:
+            F='t'
+        
+        self.image = pygame.image.load('data/colors/{}/Powerplant.png'.format(F)).convert_alpha()
+        
+        if color_no:
+            self.image = pygame.transform.flip(self.image, 1, 0)
+        
+        
+        self.rect = self.image.get_rect()
+        if color_no:
+            self.rect.x = 1920 - (64 * 5)
+            self.xx = 64 * 5
+        else:
+            self.rect.x = 64*(3)
+
+        self.prev_t = 0
+        
+        self.time_per_tick = 1
+        
+        self.block_size = 65
+        self.add = 0
+        
+    def update(self):
+        pass
+
+    def is_collided_with(self, sprite):
+        return self.rect.colliderect(sprite.rect)
+        
+        
+
+
+
+            
+            
+#if __name__ == "__main__":
+#    a = Missile(2) 
+    
+    
+    
+
+
+
+
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

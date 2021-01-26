@@ -1,0 +1,130 @@
+####################################################
+class System(pygame.sprite.Sprite, NodeLinkMethods):
+    def __init__(self):
+        super(System, self).__init__()
+
+        self.default = pygame.Surface((pygame.display.get_surface().get_rect().width, pygame.display.get_surface().get_rect().height)).convert_alpha()
+        self.default.fill((255, 255, 255, 0), None, pygame.BLEND_RGBA_MULT)
+        
+        self.image = self.default.copy()
+        
+        self.rect = self.image.get_rect()
+        
+        self.all_nodes = pygame.sprite.Group()
+        self.all_defensive_sub_systems = pygame.sprite.Group()
+        self.system_core = pygame.sprite.GroupSingle()
+        
+        Messasage_sprite = Message()
+        self.hover_message = pygame.sprite.Group()
+        self.hover_message.add(Messasage_sprite)
+        self.require_update = True
+        
+        self.node_link_list = []
+        
+        
+    def add_Node_manager(self, NodeGenerator): 
+        self.NodeGenerator = NodeGenerator
+        self.node_group = self.NodeGenerator.generate_nodes()
+        
+        for node in self.node_group:
+            node.link_system(self)
+            self.refresh_group(node)
+            
+        for cell in self.NodeGenerator.cell_tu:
+            for node in self.node_group:
+                if node.pos_tuple == cell:
+                    node.state = "Covered"
+                    
+                    node.pressed()
+                    node.pressed()
+            
+    def refresh_group(self, Node):
+        self.all_nodes.add(Node)
+        self.Defensive_Subsystem_list = ["Firewall", "Antivirus", "Restoration Node", "Virus Suppressor"]
+        
+        if Node.state in ["Blocked", "Covered"]:
+            self.all_defensive_sub_systems.remove(Node)
+        
+        if Node.container in self.Defensive_Subsystem_list:
+            self.all_defensive_sub_systems.add(Node)
+            self.all_nodes.add(Node)
+            
+        elif Node.container == "System Core":
+            self.system_core.add(Node)
+            
+    def update(self, surface):
+        self.all_nodes.update()
+        self.virus.mouse.update()
+        node = self.node_touched_test(self.virus.mouse)
+        
+        if node:
+            if node.state == "UnCovered":
+                if node.container:
+                    self.text_type = str(node.container)
+                else:
+                    self.text_type = str("Empty Node")
+            elif node.state == "Covered":
+                self.text_type = "Encrypted Node"
+            
+            elif node.state == "Blocked":
+                self.text_type = "Encrypted Node"
+        else:
+            self.text_type = None
+        
+        self.hover_message.update(self.text_type)
+        
+        #time.sleep(11)
+        self.draw_everything()
+        self.hover_message.draw(surface)
+        
+    def draw_everything(self):
+        Done = False
+        
+        draw_surface = self.default.copy()
+        
+        #if not self.require_update: return
+        while not (Done):
+            #self.lock_display.sleep(0.1)
+            self.update_links()
+            for link in self.node_link_list:
+                link.draw(draw_surface)
+            self.all_nodes.draw(draw_surface)
+            self.hover_message.draw(draw_surface)
+            
+                #self.require_update = False
+            Done = True
+            
+        self.image = draw_surface.copy()
+        
+    def include_virus(self, virus):
+        self.virus = virus
+    
+    def defend_virus(self, Node):
+        self.virus.coherence -= Node.strength
+        Node.coherence -= self.virus.strength
+        
+    def node_touched_test(self, Mouse):
+        for sprite in self.all_nodes:
+            if sprite.point_collide((Mouse.rect.x, Mouse.rect.y)):
+                return sprite
+        
+    def node_pressed_test(self, Mouse):
+        
+        touched_node = self.node_touched_test(Mouse)
+        if touched_node:
+            
+            # Press node.
+            touched_node.pressed()
+            
+            self.refresh_group(touched_node)
+            
+            #self.refre.(touched_node)
+            
+        else:
+            return False
+        
+#        self.update()
+        
+        self.update_links()
+    
+        self.draw_everything()

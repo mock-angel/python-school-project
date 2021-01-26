@@ -1,0 +1,480 @@
+"""
+#TODO:  
+CellFactory
+    
+    * all_cells
+    * sink_cells
+    * void_cells
+    * free_cells
+    * node_cells
+    * root_cell
+    
+
+"""
+
+
+import pygame
+from pygame.locals import *
+
+from widgets import ButtonGroup, Panel
+from node import Node
+from PipeMethods import PipeMethods
+from locals import *
+import random
+
+class CellFactory(object):#NodeLinkStructureGenerator
+    def __init__(self):
+        self.all_cells = [] #cell_tuple_list
+        
+        # Stores every cell that is needed to be blank.
+        self.all_cells = set()
+        self.sink_cells = set()
+        self.void_cells = set()#sink_cells_neighbours
+        self.free_cells = set()
+        self.node_cells = set()
+        self.root_cell = (0, 0)
+        
+    ###################################################################
+    # Setter.
+    def assign_diamension(self, max_rc):
+        self.max_r, self.max_c = max_rc
+    
+    ###################################################################
+    # Getters.
+    def get_sink_cells(self):
+        return list(self.sink_cells)
+        
+    def get_void_cells(self):
+        return list(self.void_cells)
+        
+    def get_free_cells(self):
+        return list(self.free_cells)
+        
+    def get_all_cells(self):
+        return list(self.all_cells)
+        
+    def get_node_cells(self):
+        return list(self.node_cells)
+    
+    
+    ########################################################
+    # --Neighbour Calculation.
+    
+    def get_neighbouring_cells_in(self, cell, set_):
+        """Get a set of all the neighbouring cells not in set."""
+        
+        # Calculate raw neighbours.
+        r, c = cell
+        
+        surr_cells = set([])
+        
+        surr_cells.add((r, c+1))
+        surr_cells.add((r, c-1))
+        
+        surr_cells.add((r+1, c))
+        surr_cells.add((r-1, c))
+        
+        if (r % 2 == 0):
+            surr_cells.add((r+1, c-1))
+            surr_cells.add((r-1, c-1))
+            
+        else:
+            surr_cells.add((r+1, c+1))
+            surr_cells.add((r-1, c+1))
+        
+        # Eleminate neighbours that can never exist.
+        invalid_surr_cells = set()
+        
+        for (cell_rc) in surr_cells:
+            cell_r, cell_c = cell_rc
+            
+            # Cells should be present in set.
+            if cell_rc not in set_:
+                invalid_surr_cells.add(cell_rc)
+
+        # Deletion.
+        surr_cells -= invalid_surr_cells
+
+        # Finally throw the result.
+        return surr_cells
+    
+    def get_all_neighbouring_cells(self, cell):
+        """Get a set of all the surrounding cells."""
+        
+        return self.get_neighbouring_cells_in(cell, self.all_cells)
+        
+    def get_neighbouring_free_cells(self, cell):
+        """Get a set of all the neighbouring free cells."""
+        
+        return self.get_neighbouring_cells_in(cell, self.free_cells)
+    
+    def get_neighbouring_void_cells(self, cell):
+        """Get a set of all the neighbouring void cells."""
+        
+        return self.get_neighbouring_cells_in(cell, self.void_cells)
+    
+    def get_neighbouring_node_cells(self, cell):
+        """Get a set of all the neighbouring node cells."""
+        
+        return self.get_neighbouring_cells_in(cell, self.node_cells)
+    
+    ########################################################
+    # --Paths layer.
+    
+    def _template_layer_creation(self, src_cell, dest_cell, neigh_callbk):
+        
+        # Cells in the same layer is of the same distance(from src_cell.)
+        
+        current_layer = [
+            [src_cell]      # Layer 0
+        ]
+        
+        # The 0th index is occupied by the source cell 
+        # from where we are initiating the search.
+        yield [src_cell]
+        
+        visited = [src_cell]
+        
+        new_cell_layer = [src_cell]
+        
+        # Iterate every Layer and find the neighbours of
+        # the cells in those layer. The unvisited neighbours 
+        # make up the next layer.
+        
+        while len(current_layer) > 0:
+            
+            if dest_cell in new_cell_layer:
+                return
+            
+            cell_layer = current_layer.pop(0)
+            
+            neighbours = []
+            
+            # Gets all neighbours of the cells in that layer.
+            for cell in cell_layer:
+                neighbours += list(neigh_callbk(cell))
+            
+            neighbours = set(neighbours) 
+            
+            # The new layer should contain distinct 
+            # elements that are not in the visited list.
+            new_cell_layer = list(set(neighbours) - set(visited))
+            
+            # Contain the new_cell_layer in current_layer.
+            current_layer.append(new_cell_layer)
+            
+            # Generate the new layer as the next iteration.
+            yield new_cell_layer
+            
+            visited += list(set(new_cell_layer) - set(visited))
+    
+    def generate_depth_layers(self, dest_cell = None):
+        """Group every cell with the same depth from source together."""
+        
+        return list(_template_layer_creation(self.root_cell, dest_cell))
+    
+    def generate_distance_layers(self, src_cell, dest_cell = None):
+        """Group every cell with the same depth from source together."""
+        
+        callback = self.get_neighbouring_node_cells
+        return list(_template_layer_creation(src_cell, dest_cell, callback))
+        
+    def generate_displacement_layers(self, src_cell, dest_cell = None):
+        """Group every cell with the same displacement from source together."""
+        
+        callback = self.get_neighbouring_all_cells
+        return list(_template_layer_creation(src_cell, dest_cell, callback))
+    
+    ########################################################
+    # --Distance / displacement / Depth.
+    
+    def _template_find_distance(self, src_cell, dest_cell, layer_callbk):
+        """Get the displacement b/w two cells."""
+        
+        # Note: The index of the layer in which the destiation cell
+        # is present in determines the shortest distance between it
+        # and the source cell.
+        
+        # Get the distance layers.
+        layer_list = list(layer_callbk(src_cell) )
+        
+        # Take every layer.
+        for layer in layer_list:
+            
+            # Return the index of layer if cell is precent in it.
+            if cell in layer: return layer_list.index(layer)
+            
+    def get_cell_distance(self, src_cell, dest_cell):
+        callbk = (self.generate_distance_layers)
+        layers = self._template_find_distance(src_cell, dest_cell, callbk)
+        
+        return len(layers) - 1
+        
+    def get_cell_depth(self, cell):
+        callbk = (self.generate_depth_layers)
+        layers = self._template_find_distance(src_cell, dest_cell, callbk)
+        
+        return len(layers) - 1
+        
+    def get_cell_displacement(self, src_cell, dest_cell):
+        callbk = (self.generate_displacement_layers)
+        layers = self._template_find_distance(src_cell, dest_cell, callbk)
+        
+        return len(layers) - 1
+    
+    ########################################################
+    # --Cells at displacement / distance / depth
+    def get_all_cells_at_displacement(self, src_cell, displacement):
+        """All cells in specific layer is returned."""
+        
+        disp_layers = list(self.generate_displacement_layers(src_cell))
+
+        return disp_layers[displacement]
+        
+    def get_all_cells_at_distance(self, src_cell, distance):
+        """Get a list of cells at specific distance from root cell."""
+        
+        dist_layers = list(self.generate_distance_layers(src_cell))
+
+        return dist_layers[displacement]
+    
+    def get_all_cells_at_depth(self, depth):
+        """Get a list of cells at specific distance from root cell."""
+        
+        layers = list(self.generate_depth_layers(self.root_cell))
+        
+        return layers[depth]
+        
+        
+    # TODO: Need to take care of NoLinkWithRootNode
+    def nodify_cell(self, cell):
+        
+        if cell in self.free_cells:
+            self.free_cells.remove(cell)
+            self.node_cells.add(cell)
+        else:
+#            log.warn("Couldn't nidufy "+str(cell))
+            print "Couldn't nidify cell"+str(cell)
+            
+    def nodify_cells_in_list(self, li):
+        for cell in li:
+            self.nodify_cell(cell)
+            
+    def nodify_cells_around_cell(self, cell):
+        for cell in self.get_all_neighbouring_cells(cell):
+            self.nodify_cell(cell)
+    
+    ########################################################
+    def pick_any_free_cell(self):
+        cell = random.choice(list(self.free_cells))
+        return cell
+    
+    def test_cell_linkage(self, cell_1, cell_2):
+        """Method to check whether node cell is reachable from root_cell."""
+        connection = False
+        
+        scanned = [cell_1]
+        
+        for cell in scanned:
+            
+            cell_neighbours = list(self.get_neighbouring_node_cells(cell))
+                
+            scanned += list(set(cell_neighbours) - set(scanned))
+
+            # Stop scanning as soon as the link is discovered.
+            if cell_2 in scanned:
+                connection = True
+                break
+            
+        print cell_neighbours, "cell_neighbours"
+        return connection
+        
+    def config_node_cells(self):
+        print True if self.root_cell in self.node_cells else False
+        node_cells = list(self.node_cells)
+        print node_cells
+        for index in range(len(node_cells)):
+            while True:
+                cell = node_cells[index]
+                
+                if self.test_cell_linkage(cell, self.root_cell):
+                    print cell, self.root_cell
+                    break
+                
+                else:
+                    
+                    
+                    node_cells[index] = self.pick_any_free_cell()
+                    self.free_cells.add(cell)
+                    self.free_cells.remove(node_cells[index])
+                    
+                    self.node_cells = set(node_cells)
+                    
+        self.node_cells = set(node_cells)
+        
+    def generate_node_lattice(self, nodes_count):
+        
+        # Generation of the basic structure.
+        for r in range(9):
+            for c in range(12):
+                self.all_cells.add((r, c))
+                self.free_cells.add((r, c))
+        
+        # restrain cells.
+        
+        # get root.
+        self.root_cell = (0, 0)
+        
+        # Draws the possible skeleton.
+        for number in range(nodes_count):#56/2):
+            
+            cell = self.pick_any_free_cell()
+               
+            self.node_cells.add(cell)
+            self.free_cells.remove(cell)
+        
+        self.config_node_cells()
+        
+    def debug(self):
+        arr = [[" " for c in range(self.max_c)] for r in range(self.max_r)]
+        
+        for scell_r, scell_c in self.sink_cells:
+            arr[scell_r][scell_x] = "0"
+            
+        for vcell_r, vcell_c in self.void_cells:
+            arr[vcell_r][vcell_x] = "v"
+        
+        for fcell_r, fcell_c in self.free_cells:
+            arr[fcell_r][fcell_x] = "*"
+        
+        display = ""
+        
+        for r in range(len(arr)):
+            for c in range(len(arr[r])):
+                display += "{:3}".format(arr[r][c])
+            display += "\n"
+            
+
+                
+        print self.all_cells
+        
+        print self.sink_cells
+        print self.void_cells
+        print self.free_cells
+        
+        
+        
+        
+        
+        
+class NodeCluster(CellFactory, ButtonGroup, PipeMethods):
+    """ Generates the Node structure and links every node to its respective neighbours.
+    
+    The draw method draws pipes and nodes.
+        - generate_node                             - Prepares the entire node based on the difficulty.#TODO: clear first.
+        - connect_neighbours
+    """    
+    
+    def __init__(self):
+    
+        CellFactory.__init__(self)
+        PipeMethods.__init__(self)
+        ButtonGroup.__init__(self)
+        self.generate_node_lattice(56)###
+        
+        PipeMethods.generate_pairs(self)
+        
+    def generate_node(self):
+        """Creates node objects and links it to all its neighbouring nodes."""
+        # Create nodes.
+        #cell_list = self.get_node_cells()
+        
+        
+        # Init all nodes, connect them to their neighbours and root the root_cell.
+        Primary_panel = Panel.get_primary()
+        
+        for cell in self.node_cells:
+            node = Node(Primary_panel, cell)
+            #node.set_container(SELF_REPAIR)
+            ButtonGroup.add(self, node)
+        
+        # Connects node to neighbour.
+        for node in self.nodes():
+            
+            self.connect_neighbours(node)
+        self.get_node_by_cell(self.root_cell).root()
+        
+        
+        return self.nodes()
+        
+    def connect_neighbours(self, node):
+        """Connects the provided node to its immediate neighbours."""
+
+        src_node.clear_linked()
+        
+        #neighbouring_cells = set(self.get_neighbouring_node_cells(src_node.cell))
+        #neighbouring_cells | set(CellFactory.get_node_cells(self))
+        
+        neighbouring_node_cells = self.get_neighbouring_node_cell(node)
+        for neighbouring_node_cell in self.get_node_ny_cell():
+        
+        neighbouring_node_cells 
+        for s_node in :
+            src_node.add_neighbours(s_node)
+#        print src_node.cell, len(src_node.get_linked_neighbours())
+        
+        return src_node.get_linked_neighbours()
+        
+    ###################################################################
+    # Finders/Searchers.
+    def get_node_by_cell(self, cell):
+        """Searches for a node which belongs to the same cell."""
+        
+        nodes = self.nodes()
+        
+        for node in nodes:
+            if cell == node.cell:
+                print cell, node.cell, "--matching"
+                return node
+        
+        # Returns last node if search fails.
+        return node
+    
+    ###################################################################
+    # Getters.
+    def nodes(self):
+        """nodes() get a list of nodes in the cluster."""
+        
+        return self.sprites()
+    
+    ###################################################################
+    # Mutators.
+    
+    
+    
+    ###################################################################
+    # Resetters.
+    def reset_lattice(self):
+        """Sets everything back to default."""
+        
+        # TODO: Method requires to be implemented.
+    
+    def draw(self, surface):
+        PipeMethods.draw(self, surface)
+        ButtonGroup.draw(self, surface)
+        
+    def connect(self, system):
+        self.system = system    
+            
+        nodes = self.nodes()
+        for node in nodes:
+            node.link_system(system)
+            
+            node.clicked(system.node_clicked_callback, (node, ))
+            node.enter(system.node_enter_callback, (node,))
+            node.leave(system.node_left_callback, (node,))
+            
+        print "connected"
+            
+            
+            
